@@ -1,0 +1,20 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/workspace/install/rune/lib/python3.10/site-packages",
+        "/workspace/install/ros_tcp_endpoint/lib/python3.10/site-packages",
+        "/workspace/install/auto_aim_msg/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/workspace/install/rune/lib/python3.10/site-packages",
+        "/workspace/install/ros_tcp_endpoint/lib/python3.10/site-packages",
+        "/workspace/install/auto_aim_msg/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages"
+    ],
+    "files.associations": {
+        "*.tcc": "cpp",
+        "fstream": "cpp"
+    }
+}
