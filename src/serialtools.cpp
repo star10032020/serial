@@ -17,6 +17,7 @@ serialPort::serialPort(serial_node *father,const char *dev): roslogger(father->r
 {
     this->fd = -1;
     this->very_ok = false;
+    RCLCPP_INFO(roslogger,"new dev:%s",dev);
     if (!OpenPort(dev))
     {
 
@@ -522,12 +523,12 @@ void serialPort::getData(int You_need_cmd)
             break;
         }
         else
-            printf("this time we dont get the frame_header!\n");
+            RCLCPP_INFO(roslogger,"this time we dont get the frame_header!\n");
     }
     if (this_have_run_time > 100)
     {
-        printf("100 times try to get the serial message,but it is not ok. we end it.\n");
-        this->very_ok = false;
+       RCLCPP_INFO(roslogger,"100 times try to get the serial message,but it is not ok. we end it,and you should notice it.\n");
+        //this->very_ok = false;
         return;
     }
     if (You_need_cmd == 0)

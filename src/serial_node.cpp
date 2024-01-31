@@ -6,6 +6,7 @@ bool serial_node::getRightPort()
 }
 void serial_node::timerCallback0()
 {
+    if(this->getRightPort())return;
     if (port == "Not Set" || !tools || !tools->ok())
     {
         RCLCPP_INFO(roslogger, "Not Found the PORT:%s!", port.c_str());
@@ -20,6 +21,7 @@ void serial_node::timerCallback0()
         // rclcpp::sleep_for(std::chrono::milliseconds(1000)); // 睡眠1000毫秒
         if (tools && tools->ok())
         {
+            RCLCPP_INFO(roslogger,"the port is %s,and successfully get it",port.c_str());
             is_ok = true;
             return;
         }
