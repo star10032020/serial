@@ -5,7 +5,7 @@ serial_node::serial_node() : Node("serial_communication"),roslogger(this->get_lo
 {
     tools=nullptr;
     port="Not Set";
-    tools=new serialPort(this,port.c_str());
+    //tools=new serialPort(this,port.c_str());
     this->declare_parameter<std::string>("ChuanKou","Not Set");
     while(!tools||!tools->ok()){
         RCLCPP_INFO(roslogger,"Not Found the PORT:%s!",port.c_str());
@@ -14,8 +14,8 @@ serial_node::serial_node() : Node("serial_communication"),roslogger(this->get_lo
             tools->~serialPort();
             tools=nullptr;
         }
-        this->get_papameter("ChuanKou",port);
-        tools=new serialPort(this,port.c_str);
+        this->get_parameter("ChuanKou",port);
+        tools=new serialPort(this,port.c_str());
         rclcpp::sleep_for(std::chrono::milliseconds(1000)); // 睡眠1000毫秒
     }
     msgGimbalPose = std::make_shared<auto_aim_msg::msg::GimbalPose>();
