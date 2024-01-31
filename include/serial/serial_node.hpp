@@ -18,8 +18,12 @@ public:
 private:
     std::string port;
     serialPort *tools;
-    void timerCallback1();
 
+    bool is_ok=false;
+    bool getRightPort();
+    void timerCallback0();
+    void timerCallback1();
+    rclcpp::TimerBase::SharedPtr timer0_;
     void timerCallback2();
 
     void gimbalCallback(const auto_aim_msg::msg::GimbalCtrl::SharedPtr msg);
