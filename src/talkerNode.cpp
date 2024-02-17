@@ -53,7 +53,7 @@ talkerNode::talkerNode() : Node("serial_communication_down"), roslogger(this->ge
     autoaim_subscriber = this->create_subscription<auto_aim_msg::msg::AimingStatus>("/aiming_status", 1, std::bind(&talkerNode::autoaimCallback, this, _1),sub_opt);
 
     //持续向下位机发信
-    timer3_ = this->create_wall_timer(200us, std::bind(&talkerNode::updateData, this),m_callback_group_);
+    timer3_ = this->create_wall_timer(1ms, std::bind(&talkerNode::updateData, this),m_callback_group_);
 }
 
 void talkerNode::updateData()
