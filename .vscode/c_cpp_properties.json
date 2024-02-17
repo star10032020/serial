@@ -13,7 +13,7 @@
         "/usr/include/**"
       ],
       "name": "ROS",
-      "intelliSenseMode": "gcc-x64",
+      "intelliSenseMode": "windows-gcc-x64",
       "compilerPath": "/usr/bin/gcc",
       "cStandard": "gnu11",
       "cppStandard": "c++14"

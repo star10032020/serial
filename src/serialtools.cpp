@@ -3,187 +3,212 @@
 #include <string.h>
 #include <sys/ioctl.h>
 // using namespace std;
-#include"serial/serial_node.hpp"
-serialPort::serialPort(serial_node *father): roslogger(father->roslogger)
+#include "serial/listenNode.hpp"
+#include "serial/talkerNode.hpp"
+int serialPort::newGetData()
+{
+    tcflush(fd,TCIFLUSH);
+    int state = 0;
+    unsigned char cmd_id = 0;
+
+    int readDataLenth = 0;
+    while (true)
+    {
+        if (state == 100)
+            break;
+        unsigned char ch = this->getchar();
+        switch (state)
+        {
+        case 0:
+            if (ch == down_to_up_SOF1)
+            {
+                state = 1;
+                Data[readDataLenth++] = ch;
+            }
+            else
+            {
+                state = 0;
+                cmd_id = 0x00;
+                readDataLenth = 0;
+            }
+            break;
+        case 1:
+            if (ch == down_to_up_SOF2)
+            {
+                state = 2;
+                Data[readDataLenth++] = ch;
+            }
+            else
+            {
+                state = 0;
+                cmd_id = 0x00;
+                readDataLenth = 0;
+            }
+            break;
+        case 2:
+            if (ch == 0x01 || ch == 0x02)
+            {
+                cmd_id = ch;
+                state = 3;
+                Data[readDataLenth++] = ch;
+            }
+            else
+            {
+                state = 0;
+                cmd_id = 0x00;
+                readDataLenth = 0;
+            }
+            break;
+        case 3:
+            if (dataLenth[int(cmd_id)] == readDataLenth)
+            {
+                state = 100;
+            }
+            else
+            {
+                Data[readDataLenth++] = ch;
+            }
+            break;
+        default:
+            state = 100;
+            cmd_id = 0x00;
+            readDataLenth = 0;
+            break;
+        }
+    }
+    if (cmd_id = 0x00)
+    {
+        RCLCPP_INFO(roslogger, "erro happened in the newGetData");
+        return newGetData();
+    }
+    if(!this->Decode(Data))
+    {
+        RCLCPP_INFO(roslogger, "erro happened in the time when we want decode");
+        return newGetData();
+    }
+    if(cmd_id==0x01){
+        readYaw=RxMsg.yaw.data;
+        readPitch=RxMsg.pitch.data;
+        readRoll=RxMsg.roll.data;
+    }else if(cmd_id==0x02){
+        readSelfColor=RxMsg.self_color;
+        readSelfID=RxMsg.self_ID;
+        readAttackMode=RxMsg.AttackMode;
+        readDetectMode=RxMsg.DetectMode;
+    }else{
+        RCLCPP_INFO(roslogger,"Wrong cmd_id in the newGetData!");
+    }
+    return (int)cmd_id;
+}
+serialPort::~serialPort()
+{
+    this->ClosePort();
+}
+serialPort::serialPort(listenNode *father, const char *dev) : roslogger(father->roslogger)
 {
     this->fd = -1;
     this->very_ok = false;
-    
-}
-serialPort::~serialPort(){
-this->ClosePort();
-}
-serialPort::serialPort(serial_node *father,const char *dev): roslogger(father->roslogger)
-{
-    this->fd = -1;
-    this->very_ok = false;
-    RCLCPP_INFO(roslogger,"new dev:%s",dev);
+    RCLCPP_INFO(roslogger, "new dev:%s", dev);
     if (!OpenPort(dev))
     {
 
-        //printf("open failed;\n serial BAD!\n");
-        RCLCPP_INFO(roslogger,"open failed; \t serial BAD!");
+        // printf("open failed;\n serial BAD!\n");
+        RCLCPP_INFO(roslogger, "open failed; \t serial BAD!");
     }
     else
     {
         if (!setup(115200, 0, 8, 1, 'N'))
         {
-            //printf("setup failed;\n serial BAD!\n");
-            RCLCPP_INFO(roslogger,"setup failed; \t serial BAD!");
+            // printf("setup failed;\n serial BAD!\n");
+            RCLCPP_INFO(roslogger, "setup failed; \t serial BAD!");
         }
         else
         {
-            //printf("setup is ok");
-            //printf("open and setup ok.let us read.\n");
-            RCLCPP_INFO(roslogger,"setup is ok...");
-            RCLCPP_INFO(roslogger,"open and setup ok. \t let us read.");
+            // printf("setup is ok");
+            // printf("open and setup ok.let us read.\n");
+            RCLCPP_INFO(roslogger, "setup is ok...");
+            RCLCPP_INFO(roslogger, "open and setup ok. \t let us read.");
             very_ok = true;
         }
     }
 }
+serialPort::serialPort(talkerNode *father, const char *dev) : roslogger(father->roslogger)
+{
+    this->fd = -1;
+    this->very_ok = false;
+    RCLCPP_INFO(roslogger, "new dev:%s", dev);
+    if (!OpenPort(dev))
+    {
 
+        // printf("open failed;\n serial BAD!\n");
+        RCLCPP_INFO(roslogger, "open failed; \t serial BAD!");
+    }
+    else
+    {
+        if (!setup(115200, 0, 8, 1, 'N'))
+        {
+            // printf("setup failed;\n serial BAD!\n");
+            RCLCPP_INFO(roslogger, "setup failed; \t serial BAD!");
+        }
+        else
+        {
+            // printf("setup is ok");
+            // printf("open and setup ok.let us read.\n");
+            RCLCPP_INFO(roslogger, "setup is ok...");
+            RCLCPP_INFO(roslogger, "open and setup ok. \t let us read.");
+            very_ok = true;
+        }
+    }
+}
 void serialPort::initPath(const char *dev)
 {
     // this->fd = -1;
     // this->very_ok = false;
     if (this->very_ok)
     {
-        //printf("You have make it.Do not do it again!\n");
-        RCLCPP_INFO(roslogger,"You have read it.Do not do it again!");
+        // printf("You have make it.Do not do it again!\n");
+        RCLCPP_INFO(roslogger, "You have read it.Do not do it again!");
         return;
     }
 
     if (!OpenPort(dev))
     {
 
-        //printf("open failed;\n serial BAD!\n");
-        RCLCPP_INFO(roslogger,"open failed; \t serial BAD!");
+        // printf("open failed;\n serial BAD!\n");
+        RCLCPP_INFO(roslogger, "open failed; \t serial BAD!");
     }
     else
     {
-        //printf("Openport is ok.\n");
-        RCLCPP_INFO(roslogger,"Openport is ok.");
+        // printf("Openport is ok.\n");
+        RCLCPP_INFO(roslogger, "Openport is ok.");
         if (!setup(115200, 0, 8, 1, 'N'))
         {
-            //printf("setup failed;\n serial BAD!\n");
-        RCLCPP_INFO(roslogger,"setup failed \t serial BAD!");
+            // printf("setup failed;\n serial BAD!\n");
+            RCLCPP_INFO(roslogger, "setup failed \t serial BAD!");
         }
         else
         {
-            //printf("setup is ok.\n");
-            //printf("open and setup ok.let us read.\n");
-            RCLCPP_INFO(roslogger,"setup is ok...");
-            RCLCPP_INFO(roslogger,"open and setup ok. \t let us read.");
+            // printf("setup is ok.\n");
+            // printf("open and setup ok.let us read.\n");
+            RCLCPP_INFO(roslogger, "setup is ok...");
+            RCLCPP_INFO(roslogger, "open and setup ok. \t let us read.");
             very_ok = true;
         }
     }
 }
 
-char serialPort::getTargetColor(){
-     if (!this->very_ok)
-    {
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        return 'F';
-    }
-    getData(4);
-    return this->serial_target_color;
-}
-unsigned char serialPort::getMode(){
-     if (!this->very_ok)
-    {
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        return 100;
-    }
-    getData(4);
-    return this->serial_mode;
-}
-unsigned char serialPort::getTargetRobotType(){
-     if (!this->very_ok)
-    {
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        return 100;
-    }
-    getData(4);
-    return this->serial_robot_type;
-}
-void serialPort::getGimbalPose(double &gimbal_roll,double &gimbal_pitch,double &gimbal_yaw)
+void serialPort::setRosData(double relate_yaw, double relate_pitch,unsigned char FireMode,float confidence)
 {
-    // tcflush(fd,TCIOFLUSH);
+    tcflush(fd, TCOFLUSH);
     if (!this->very_ok)
     {
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
+        RCLCPP_INFO(roslogger, "Oh NO! \t serialPort may not been open or setup correctly!");
+        // printf("Oh NO! serialPort may not been open or setup correctly!\n");
         return;
     }
-    getData(1);
-    gimbal_roll =serial_roll;
-    gimbal_yaw = serial_yam, gimbal_pitch = serial_pitch;
-    return;
-}
-
-void serialPort::setGimbalPose(float gimbal_yaw, float gimbal_pitch)
-{
-    unsigned char WriData[30];
-    tcflush(fd, TCIOFLUSH);
-    if (!this->very_ok)
-    {
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        return;
-    }
-    Encode(WriData, gimbal_yaw, gimbal_pitch);
-    writeBuffer(WriData, 10);
+    Encode(this->WriteData, relate_yaw, relate_pitch,FireMode,confidence);
+    writeBuffer(this->WriteData, this->WriteDataLenth);
     // printf("we have write.\n");
-}
-float serialPort::getBalletSpeed()
-{
-    if (!this->very_ok)
-    {
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        return -1;
-    }
-    getData(3);
-    return RxMsg.BulletSpeed.data;
-}
-
-RobotID serialPort::getSelfId()
-{
-
-    if (!this->very_ok)
-    {
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        return UNKNOWN_ID_ROBOT;
-    }
-    getData(3);
-    return this->serial_ID;
-}
-Color serialPort::getSelfColor()
-{
-    if (!this->very_ok)
-    {
-         RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-        //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        return UNKNOWN_COLOR;
-    }
-
-    getData(3);
-    return this->serial_clour;
-}
-std::map<CtrlKey, bool> serialPort::getCtrlKeys()
-{
-    if (!this->very_ok)
-    {
-        RCLCPP_INFO(roslogger,"Oh NO! \t serialPort may not been open or setup correctly!");
-       //printf("Oh NO! serialPort may not been open or setup correctly!\n");
-        return this->serial_map;
-    }
-    getData(2);
-    return this->serial_map;
 }
 
 bool serialPort::OpenPort(const char *dev)
@@ -351,37 +376,7 @@ void serialPort::ClosePort()
     close(fd);
 }
 
-void serialPort::sbus_to_rc(const unsigned char *sbus_buf, RC_ctrl_t *rc_ctrl)
-{
-    if (sbus_buf == NULL || rc_ctrl == NULL)
-    {
-        return;
-    }
-
-    rc_ctrl->rc.ch[0] = (sbus_buf[0] | (sbus_buf[1] << 8)) & 0x07ff;        //!< Channel 0
-    rc_ctrl->rc.ch[1] = ((sbus_buf[1] >> 3) | (sbus_buf[2] << 5)) & 0x07ff; //!< Channel 1
-    rc_ctrl->rc.ch[2] = ((sbus_buf[2] >> 6) | (sbus_buf[3] << 2) |          //!< Channel 2
-                         (sbus_buf[4] << 10)) &
-                        0x07ff;
-    rc_ctrl->rc.ch[3] = ((sbus_buf[4] >> 1) | (sbus_buf[5] << 7)) & 0x07ff; //!< Channel 3
-    rc_ctrl->rc.s[0] = ((sbus_buf[5] >> 4) & 0x0003);                       //!< Switch left
-    rc_ctrl->rc.s[1] = ((sbus_buf[5] >> 4) & 0x000C) >> 2;                  //!< Switch right
-    rc_ctrl->mouse.x = sbus_buf[6] | (sbus_buf[7] << 8);                    //!< Mouse X axis
-    rc_ctrl->mouse.y = sbus_buf[8] | (sbus_buf[9] << 8);                    //!< Mouse Y axis
-    rc_ctrl->mouse.z = sbus_buf[10] | (sbus_buf[11] << 8);                  //!< Mouse Z axis
-    rc_ctrl->mouse.press_l = sbus_buf[12];                                  //!< Mouse Left Is Press ?
-    rc_ctrl->mouse.press_r = sbus_buf[13];                                  //!< Mouse Right Is Press ?
-    rc_ctrl->key.v = sbus_buf[14] | (sbus_buf[15] << 8);                    //!< KeyBoard value
-    rc_ctrl->rc.ch[4] = sbus_buf[16] | (sbus_buf[17] << 8);                 // NULL
-
-    rc_ctrl->rc.ch[0] -= RC_CH_VALUE_OFFSET;
-    rc_ctrl->rc.ch[1] -= RC_CH_VALUE_OFFSET;
-    rc_ctrl->rc.ch[2] -= RC_CH_VALUE_OFFSET;
-    rc_ctrl->rc.ch[3] -= RC_CH_VALUE_OFFSET;
-    rc_ctrl->rc.ch[4] -= RC_CH_VALUE_OFFSET;
-}
-
-bool serialPort::Decode(const unsigned char RawData[], int You_need_cmd)
+bool serialPort::Decode(const unsigned char RawData[])
 {
     bool are_you_ok = true;
     int state = 0;
@@ -392,69 +387,82 @@ bool serialPort::Decode(const unsigned char RawData[], int You_need_cmd)
         switch (state)
         {
         case 0:
-            if (SOF1 == RawData[0])
+            if (down_to_up_SOF1 == RawData[0])
             {
                 state = 1;
             }
             else
             {
                 are_you_ok = false;
-                state = 0;
+                state = 100;
             }
             break;
         case 1:
-            if (SOF2 == RawData[1])
+            if (down_to_up_SOF2 == RawData[1])
             {
                 state = 2;
             }
             else
             {
                 are_you_ok = false;
-                state = 0;
+                state = 100;
             }
             break;
         case 2:
-            if (RawData[2] > 3 || RawData[2] < 1)
+            if (RawData[2] == 0x01 || RawData[2] == 0x02)
             {
-                are_you_ok = false;
+                state += (int)RawData[2];
+                I_get_cmd = RawData[2];
                 break;
             }
-            state += RawData[2];
-            I_get_cmd = RawData[2];
-            if (I_get_cmd != You_need_cmd)
+            else
+            {
                 are_you_ok = false;
+                state=100;
+                break;
+            }
             break;
         case 3:
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 8; i++)
             {
                 RxMsg.yaw.bytes[i] = RawData[i + 3];
-                RxMsg.pitch.bytes[i] = RawData[i + 7];
-                RxMsg.roll.bytes[i]=0;//串口还没写
+                RxMsg.pitch.bytes[i] = RawData[i + 11];
+                RxMsg.roll.bytes[i] = RawData[i + 19]; // 串口还没写
             }
             state = 100;
             break;
         case 4:
-            sbus_to_rc(RawData + 3, &RxMsg.RemoteControl);
-            state = 100;
-            break;
-        case 5:
-            RxMsg.ID = RawData[3];
-            RxMsg.LightColor = RawData[4];
-            for (int i = 0; i < 4; i++)
-            {
-                RxMsg.BulletSpeed.bytes[i] = RawData[i + 5];
-            }
-            state = 100;
-            break;
-        case 6:
-            RxMsg.target_color=0;//串口还没写
-            RxMsg.mode=0;//串口还没写
-            RxMsg.target_robot_type=0;//串口还没写
             
-            state=100;
+            if(RawData[3]>0x01){
+                are_you_ok = false;
+                state=100;
+                break;
+            }
+            if(RawData[4]==0x00||RawData[4]>0x08){
+                are_you_ok = false;
+                state=100;
+                break;
+            }
+            if(RawData[5]>0x03){
+                are_you_ok = false;
+                state=100;
+                break;
+            }
+            if(RawData[6]>0x01){
+                are_you_ok = false;
+                state=100;
+                break;
+            }
+            RxMsg.self_color = RawData[3];      
+            RxMsg.self_ID = RawData[4];
+            RxMsg.DetectMode = RawData[5]; 
+            RxMsg.AttackMode = RawData[6]; 
+
+            state = 100;
             break;
         default:
-            are_you_ok=false;
+            are_you_ok = false;
+            state=100;
             break;
         }
 
@@ -466,185 +474,27 @@ bool serialPort::Decode(const unsigned char RawData[], int You_need_cmd)
     return are_you_ok;
 }
 
-void serialPort::Encode(unsigned char RawData[], float YawData, float PitchData)
+void serialPort::Encode(unsigned char RawData[], double YawData, double PitchData,unsigned char FireMode,float confidence)
 {
-    RxFP32Data yaw, pitch;
+    RxFP64Data yaw, pitch;
     yaw.data = YawData;
     pitch.data = PitchData;
-    RawData[0] = SOF1;
-    RawData[1] = SOF2;
-    for (int i = 0; i < 4; i++)
+    RawData[0] = up_to_down_SOF1;
+    RawData[1] = up_to_down_SOF2;
+    for (int i = 0; i < 8; i++)
     {
         RawData[i + 2] = yaw.bytes[i];
-        RawData[i + 6] = pitch.bytes[i];
+        RawData[i + 10] = pitch.bytes[i];
+    }
+    RawData[18]=FireMode;
+  
+    RxFP32Data conf;
+    conf.data=confidence;
+    for(int i=0;i<4;i++){
+        RawData[i+19]=conf.bytes[i];
     }
 }
-void serialPort::getData(int You_need_cmd)
+bool serialPort::ok()
 {
-    static unsigned char MyRowData[300] = {};
-    bool I_ok = false;
-    int this_have_run_time;
-    for (this_have_run_time = 1; this_have_run_time <= 100; ++this_have_run_time)
-    {
-        tcflush(fd, TCIOFLUSH);
-
-        // printf("we are deleting the huancun now .\n");
-        readBuffer(MyRowData, 80);
-        // printf("we are getting data now.\n");
-
-        /* if(You_need_cmd==0){
-
-                             for(int i=0;i<100;i++)
-                             printf("%X ",MyRowData[i]);
-                         printf("\n");
-                         }*/
-
-        for (int i = 0; i + 22 < 78; i++)
-        {
-            if (MyRowData[i] == SOF1 && MyRowData[i + 1] == SOF2)
-                if (MyRowData[i + 2] >= 1 && MyRowData[i + 2] <= 3)
-                {
-                    if (You_need_cmd == 0)
-                    {
-
-                        for (int j = i; j < 22 + i && j < 80; j++)
-                            printf("%X ", MyRowData[j]);
-                        printf("\n");
-                    }
-                    I_ok = Decode(MyRowData + i, You_need_cmd);
-                    if (I_ok)
-                    {
-                        break;
-                    }
-                }
-        }
-        if (I_ok)
-        {
-            break;
-        }
-        else
-            RCLCPP_INFO(roslogger,"this time we dont get the frame_header!\n");
-    }
-    if (this_have_run_time > 100)
-    {
-       RCLCPP_INFO(roslogger,"100 times try to get the serial message,but it is not ok. we end it,and you should notice it.\n");
-        //this->very_ok = false;
-        return;
-    }
-    if (You_need_cmd == 0)
-        return;
-
-    if (You_need_cmd == 1)
-    {
-        this->serial_yam = RxMsg.yaw.data;
-        this->serial_pitch = RxMsg.pitch.data;
-        this->serial_roll = RxMsg.roll.data;
-        if (abs(this->serial_yam) > 4 || abs(this->serial_pitch) > 4 / 2)
-        {
-            return getData(1);
-        }
-    }
-    else if (You_need_cmd == 2)
-    {
-        unsigned short tool = RxMsg.RemoteControl.key.v;
-        bool key_ctrl = tool & 1;
-        tool >>= 1;
-        bool key_shift = tool & 1;
-        tool >>= 1;
-        bool key_e = tool & 1;
-        tool >>= 1;
-        bool key_q = tool & 1;
-        tool >>= 1;
-
-        /*bool key_d = tool&1;
-        tool>>=1;
-        bool key_a = tool&1;
-        tool>>=1;
-        bool key_s = tool&1;
-        tool>>=1;
-        bool key_w = tool&1;
-        tool>>=1;*/
-
-        bool mouse_left = RxMsg.RemoteControl.mouse.press_l;
-        bool mouse_right = RxMsg.RemoteControl.mouse.press_r;
-
-        this->serial_map[KEY_Q] = key_q;
-        this->serial_map[KEY_CTRL] = key_ctrl;
-        this->serial_map[KEY_SHIFT] = key_shift;
-        this->serial_map[KEY_E] = key_e;
-        this->serial_map[MOUSE_LEFT] = mouse_left;
-        this->serial_map[MOUSE_RIGHT] = mouse_right;
-    }
-    else if (You_need_cmd == 3)
-    {
-
-        int tem_ID = RxMsg.ID, tem_LightCOlor = RxMsg.LightColor;
-
-        switch (tem_ID)
-        {
-
-        case 1:
-            this->serial_ID = HERO_ID_1;
-            break;
-        case 2:
-            this->serial_ID = ENGINEER_ID_2;
-            break;
-        case 3:
-            this->serial_ID = STANDARD_ID_3;
-            break;
-        case 4:
-            this->serial_ID = STANDARD_ID_4;
-            break;
-        case 5:
-            this->serial_ID = STANDARD_ID_5;
-            break;
-        case 7:
-            this->serial_ID = SENTRY_ID_7;
-            break;
-        default:
-            this->serial_ID = UNKNOWN_ID_ROBOT;
-            break;
-        }
-
-        switch (tem_LightCOlor)
-        {
-        case 1:
-            this->serial_clour = RED;
-            break;
-        case 2:
-            this->serial_clour = BLUE;
-            break;
-        default:
-            this->serial_clour = UNKNOWN_COLOR;
-            break;
-        }
-
-        this->serial_speed = RxMsg.BulletSpeed.data;
-    }else if (You_need_cmd==4)
-    {
-        switch(RxMsg.target_color){
-            case 0:
-                this->serial_target_color='R';
-                break;
-            case 1:
-                this->serial_target_color='B';
-                break;
-            case 2:
-                this->serial_target_color='U';
-                break;
-            default:
-                this->serial_target_color='N';
-                break;
-        }
-
-        this->serial_mode=RxMsg.mode;
-        this->serial_robot_type=RxMsg.target_robot_type;
-    }
-    
-
-    return;
-}
-
-bool serialPort::ok() {
     return very_ok;
 }

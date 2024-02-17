@@ -21,7 +21,7 @@ include_directories(
   "include"
 )
 
-add_executable(serial_node src/serial_node.cpp src/serialtools.cpp)
+add_executable(serial_node src/mainNode.cpp src/listenNode.cpp src/talkerNode.cpp src/serialtools.cpp)
 ament_target_dependencies(serial_node rclcpp auto_aim_msg)
 
 if(BUILD_TESTING)
